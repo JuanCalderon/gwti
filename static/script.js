@@ -10,6 +10,7 @@ function hideProgress() {
     progressBar.style.display = 'none';
 }
 
+// Handles the submission of the dataset form.
 document.getElementById('datasetForm').addEventListener('submit', function(event) {
     event.preventDefault();
 
@@ -41,6 +42,7 @@ document.getElementById('datasetForm').addEventListener('submit', function(event
 
         if (data.processed) {
 
+            // Successfully processed the dataset
             header_html.innerHTML = `
                 <p>${data.message}</p>
                 <table style="font-size: 12px; border-spacing: 2px;">
@@ -100,25 +102,25 @@ document.getElementById('datasetForm').addEventListener('submit', function(event
 
             document.getElementById("table_body_tweet").innerText = '';
 
-            // fetchData();
-
         } else {
+            // Display error message if dataset processing failed
             header_html.innerHTML =  `<p>${data.message}</p>`;
             threshold_html.style.display = "none";
         }
 
-        /* hideProgress(); */
-
     })
     .catch(error => {
-        console.error('Error:', error)
+        // Handle network or other errors during dataset processing
+        console.error('Error:', error);
+        header_html.innerHTML = '<p class="error-message">Error processing dataset. Please check the files and try again.</p>';
         threshold_html.style.display = "none";
-        hideProgress();
+        hideProgress(); // Ensure progress is hidden on error
     }).finally(() =>{
-        hideProgress();
+        hideProgress(); // Always hide progress after fetch attempt
     });
 });
 
+// Handles the submission of the threshold form.
 document.getElementById('thresholdForm').addEventListener('submit', function(event) {
     event.preventDefault();
 
@@ -148,6 +150,7 @@ document.getElementById('thresholdForm').addEventListener('submit', function(eve
 
         if (data.processed) {
 
+            // Successfully processed thresholds
             header_threshol_html.innerHTML = `
                 <p>${data.message}</p>
                 <table style="font-size: 12px; border-spacing: 2px;">
@@ -187,75 +190,79 @@ document.getElementById('thresholdForm').addEventListener('submit', function(eve
 
             traceability_html.style.display = "block";
 
-            // fetchData();
         } else {
-            document.getElementById("table_body_tweet").innerText = '<p>${data.message}</p>';
+            // Display error message if threshold processing failed
+            document.getElementById("table_body_tweet").innerText = `<p>${data.message}</p>`;
             traceability_html.style.display = "none";
         }
     })
     .catch(error => {
-        console.error('Error:', error)
+        // Handle network or other errors during threshold processing
+        console.error('Error:', error);
         document.getElementById('msg_status').textContent = 'Error in processing target';
         traceability_html.style.display = "none";
-        hideProgress();
+        hideProgress(); // Ensure progress is hidden on error
     }).finally(() =>{
         document.getElementById('msg_status').textContent = 'Ready';
-        hideProgress();
+        hideProgress(); // Always hide progress after fetch attempt
     });
 
 });
 
+// Initiates the data streaming process for traceability.
 document.getElementById('traceabilityForm').addEventListener('submit', function(event) {
     event.preventDefault();
 
     document.getElementById("table_body_tweet").innerText = '';
     document.getElementById('msg_status').textContent = 'Tracing q-grams...';
 
-    fetchData()
+    fetchData();
 });
 
+// Manages Server-Sent Events (SSE) for streaming HTML data to update the table.
 function fetchData() {
 
     if (!eventSource || (eventSource.readyState === EventSource.CLOSED)) {
         eventSource = new EventSource("/stream-data-html");
 
         eventSource.onmessage = function (event) {
-            let content = event.data
+            let content = event.data;
             if (content === "__COMPLETE__") {
+                // Handle stream completion
                 document.getElementById('msg_status').textContent = "All elements have been loaded";
                 eventSource.close();
             } else if (content === '__START__') {
-
+                // Handle stream start: insert table header
                 table_header = "<tr><th>Idx</th><th>Tweet: words highlighted their contribution on w &middot; p</th>" +
                     "<th>" +
-                    "   <span class='tooltip' style='float: left;'>" +
+                    // Apply CSS classes instead of inline styles
+                    "   <span class='tooltip tooltip-header-float'>" +
                             "<span class='span_pred_value' >Decision</span>" +
                             "<span class='span_pred_klass' >P</span>" +
                             "<span class='span_true_klass' >T</span>" +
-                            "<span class='tooltip_text' style='width: 160px; text-align: left; text-shadow: 0 0 BLACK;'><ul >" +
+                            // Apply CSS classes instead of inline styles
+                            "<span class='tooltip_text tooltip-custom-style'><ul >" +
                                 "<li>Decision value</li>" +
                                 "<li>Prediction class</li>" +
                                 "<li>True class</li></ul>" +
                             "</span>" +
                         "</span>" +
                     "</th>" +
-                    "</tr>"
+                    "</tr>";
 
                 document.getElementById("table_body_tweet").insertAdjacentHTML('beforeend', table_header);
-
                 document.getElementById('msg_status').textContent = 'Loading...';
 
             } else {
-                /* each row tr */
+                // Handle incoming data chunks (table rows)
                 document.getElementById("table_body_tweet").insertAdjacentHTML('beforeend', content);
             }
         };
 
         eventSource.onerror = function() {
+            // Handle SSE connection errors
             document.getElementById('msg_status').textContent = "Error en la conexión.";
             eventSource.close();
         };
-
     }
-
 }

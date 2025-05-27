@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <div class="header_content" style="transform: scale(0.9); transform-origin: bottom;">
+    <header class="header_content header-scaled">
 
         <h1 class="main-title">Gram-Weighted Tracing for Interpretability (GWTI)</h1>
         <p class="sub-title" >Q-gram Decomposition with Traceability: Word-Level Analysis for Pre-Hoc Interpretability in Sparse Short-Text NLP</p>
@@ -27,7 +27,7 @@
 
                     <div class="form-group">
                         <label for="jsonFileTrain">Train Dataset file:</label>
-                        <input type="file" id="jsonFileTrain" name="jsonFileTrain" accept=".json" style="width: 600px;" >
+                        <input type="file" id="jsonFileTrain" name="jsonFileTrain" accept=".json" class="file-input-width">
                         <p class="description">It must be a JSON file, line by line and contain fields: text and klass</p>
                         <p class="description">e.g. {'text:'And instead of bringing it back and putting the money to...', 'klass':0, ...}</p>
                         <p class="description">Klass values must be integers, consecutive, and start at 0</p>
@@ -35,7 +35,7 @@
 
                     <div class="form-group">
                         <label for="jsonFileTest">Test Dataset file:</label>
-                        <input type="file" id="jsonFileTest" name="jsonFileTest" accept=".json" style="width: 600px;" >
+                        <input type="file" id="jsonFileTest" name="jsonFileTest" accept=".json" class="file-input-width">
                         <p class="description">It must be a JSON file, line by line and contain fields: text and klass</p>
                         <p class="description">e.g. {'text:'And instead of bringing it back and putting the money to...', 'klass':0, ...}</p>
                         <p class="description">Klass values must be integers, consecutive, and start at 0</p>
@@ -54,7 +54,7 @@
             -->
 
             <div class="form-group full-width">
-                <button type="submit" class="full-width">Submit Dataset</button>
+                <button type="submit" class="full-width" >Submit Dataset</button>
             </div>
 
         </form>
@@ -85,7 +85,7 @@
                     </div>
                 </div>
                 <div class="form-group full-width">
-                    <button type="submit" class="full-width" style="width: 140px;">Submit Threshold</button>
+                    <button type="submit" class="full-width form-submit-button-small" >Submit Threshold</button>
                 </div>
             </form>
         </div>
@@ -102,18 +102,18 @@
         </div>
 
         <!-- button id="stop-stream">Stop Stream</button> -->
-    </div>
+    </header>
 
-    <div id="main_content_nope">
+    <main id="main_content">
         <table id="table_results" class="results">
             <tbody id="table_body_tweet">
             </tbody>
         </table>
-    </div>
+    </main>
 
-    <div id="footer_content">
+    <footer id="footer_content">
         <p id="msg_status" ></p>
-    </div>
+    </footer>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 

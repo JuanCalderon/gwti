@@ -23,6 +23,12 @@ body {
     top: 5px;
 }
 
+/* New class for header scaling, replacing inline style */
+.header-scaled {
+    transform: scale(0.9);
+    transform-origin: bottom;
+}
+
 #header_html {
     margin-top: 55px;
     padding: 10px;
@@ -54,14 +60,7 @@ body {
     left: 0;
 }
 
-.container_nope {
-    width: 50%;
-    margin: 0 auto;
-    padding: 20px;
-    background-color: #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
+/* Removed .container_nope as it's assumed unused */
 
 h1, h2, h4 {
     text-align: center;
@@ -90,6 +89,11 @@ label {
     font-size: small;
     display: block;
     margin-bottom: 1px;
+}
+
+/* New class for file input width, replacing inline style */
+.file-input-width {
+    width: 600px;
 }
 
 .input-row {
@@ -130,6 +134,11 @@ button {
     float: right;
 }
 
+/* New class for smaller submit button, replacing inline style */
+.form-submit-button-small {
+    width: 140px;
+}
+
 button:hover {
     background-color: #0056b3;
 }
@@ -155,11 +164,7 @@ button:hover {
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
-.td_words____ {
-    width: auto;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
+/* Removed .td_words____ as it's assumed unused or a typo */
 
 .tr_row {
     cursor: pointer;
@@ -201,6 +206,18 @@ button:hover {
   color:  #208050;
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 
+}
+
+/* New class for tooltip header float, from script.js */
+.tooltip-header-float {
+    float: left;
+}
+
+/* New class for tooltip custom styling, from script.js */
+.tooltip-custom-style {
+    width: 160px;
+    text-align: left;
+    text-shadow: 0 0 BLACK; /* Note: 'BLACK' might be better as a hex code e.g., #000 or a named color like black */
 }
 
 .tooltip:hover .tooltip_text {
@@ -341,4 +358,15 @@ table tr:hover {
 #traceability_html {
     margin-top: 20px;
     padding-bottom: 20px;
+}
+
+/* New class for styling error messages, from script.js */
+.error-message {
+    color: red;
+    font-weight: bold;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid red;
+    border-radius: 5px;
+    background-color: #ffe0e0; /* Light pink background for errors */
 }
