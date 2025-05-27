@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interpretability by Decomposition</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header_content" style="transform: scale(0.9); transform-origin: bottom;">
+
+        <h1 class="main-title">Gram-Weighted Tracing for Interpretability (GWTI)</h1>
+        <p class="sub-title" >Q-gram Decomposition with Traceability: Word-Level Analysis for Pre-Hoc Interpretability in Sparse Short-Text NLP</p>
+
+        <form id="datasetForm">
+
+            <div class="form-columns">
+
+                <div class="form-column">
+
+                    <div class="form-group">
+                        <label for="sample_size">Sample size:</label>
+                        <input type="number" id="sample_size" name="sample_size" value="1600"  min="0" max="12000" required>
+                        <p class="description">Limits size of the dataset; useful for a quick review.</p>
+                        <p class="description">0 will be unlimited.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="jsonFileTrain">Train Dataset file:</label>
+                        <input type="file" id="jsonFileTrain" name="jsonFileTrain" accept=".json" style="width: 600px;" >
+                        <p class="description">It must be a JSON file, line by line and contain fields: text and klass</p>
+                        <p class="description">e.g. {'text:'And instead of bringing it back and putting the money to...', 'klass':0, ...}</p>
+                        <p class="description">Klass values must be integers, consecutive, and start at 0</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="jsonFileTest">Test Dataset file:</label>
+                        <input type="file" id="jsonFileTest" name="jsonFileTest" accept=".json" style="width: 600px;" >
+                        <p class="description">It must be a JSON file, line by line and contain fields: text and klass</p>
+                        <p class="description">e.g. {'text:'And instead of bringing it back and putting the money to...', 'klass':0, ...}</p>
+                        <p class="description">Klass values must be integers, consecutive, and start at 0</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!--
+            <ul class="instruction">
+                <li>Sample: Limits the size of the dataset; use it for a quick review.</li>
+                <li>Threshold Decision Value: The minimum value that the decision function must reach for the instance to be classified.</li>
+                <li>Threshold Weight: The minimum weight that coefficients must reach. A value of 0 means no limit for all three parameters.</li>
+            </ul>
+            -->
+
+            <div class="form-group full-width">
+                <button type="submit" class="full-width">Submit Dataset</button>
+            </div>
+
+        </form>
+
+        <div id="progress-bar" class="indeterminate" style="display:none;">
+            <div class="progress"></div>
+        </div>
+
+        <div id="header_html"></div>
+
+        <div id="threshold_html" style="display: none;">
+            <form id="thresholdForm">
+                <div class="form-columns">
+                    <div class="form-column">
+                        <div class="form-group">
+                            <label for="min_weight">Threshold Weight:</label>
+                            <input type="number" id="min_weight" name="min_weight" value="0.005"   min="0" max="10"  step="any" required>
+                            <p class="description">Absolute minimum weight that coefficients must reach.</p>
+                            <p class="description">Improves readability; values remain unchanged.</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="min_decision_value">Threshold Decision Value:</label>
+                            <input type="number" id="min_decision_value" name="min_decision_value"  min="0" max="10"  value="0.05" step="any" required>
+                            <p class="description">Absolute minimum value that the decision function must reach for the classified instance.</p>
+                            <p class="description">0 will be unlimited.</p>
+                            <p class="description">Reduces the number of instances to view.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <button type="submit" class="full-width" style="width: 140px;">Submit Threshold</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="header_threshold_html"></div>
+
+        <div id="traceability_html" style="display: none;">
+            <form id="traceabilityForm">
+                <div class="form-group full-width">
+                    <p><a href="/download-json" class="btn">Download Tokens and Grams as JSON</a></p>
+                    <button type="submit" class="full-width" style="width: 140px;">Traceability</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- button id="stop-stream">Stop Stream</button> -->
+    </div>
+
+    <div id="main_content_nope">
+        <table id="table_results" class="results">
+            <tbody id="table_body_tweet">
+            </tbody>
+        </table>
+    </div>
+
+    <div id="footer_content">
+        <p id="msg_status" ></p>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
+
