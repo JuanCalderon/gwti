@@ -15,8 +15,7 @@ It provides precise, low-cost visual explanations that are particularly effectiv
 ## 📁 Repository Structure
 
 - `experiments/` — Python scripts for reproducing the experiments and figures reported in the PRL manuscript.
-- `supplementary/` — Supplementary materials including annotated examples, interpretability thresholds, and instance breakdowns.
-- `images/` — Heatmaps, token-level visualizations, and UI snapshots used in the paper.
+- `supplementary/` — Supplementary materials heatmaps, token-level visualizations, and UI snapshots used in the paper 
 - `CITATION.cff` — Citation metadata for properly referencing this work.
 - `README.md` — This file.
 
