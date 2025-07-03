@@ -584,15 +584,25 @@ def generate_chunks():
         str: Server-sent event data strings. Starts with '__START__', ends with '__COMPLETE__',
              and intermediate events are chunks of HTML table rows.
     """
+    start_time = time.time()
     table_rows = htmlizer() # Get all HTML table rows
+    end_time = time.time()
+    elapsed_time = end_time - start_time
 
     total_row = len(table_rows)
+    time_per_instance = elapsed_time / total_row if total_row > 0 else 0
+
+    timing_info = f"Time per instance: {time_per_instance:.5f} sec in {total_row} instances."
+
     chunk_size = 400
     yield f"data: __START__\n\n"
     for i in range(0, total_row, chunk_size):
         chunk = table_rows[i:i + chunk_size]
         yield f"data: {''.join(chunk)}\n\n"
         time.sleep(1)
+
+    # Append timing information to the traceability_html div
+    yield f"data: <div id='timing_info'>{timing_info}</div>\n\n"
     yield "data: __COMPLETE__\n\n"  # Signal to indicate that the shipment was completed
 
 @app.route('/stream-data-html')

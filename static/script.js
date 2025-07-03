@@ -253,6 +253,9 @@ function fetchData() {
                 document.getElementById("table_body_tweet").insertAdjacentHTML('beforeend', table_header);
                 document.getElementById('msg_status').textContent = 'Loading...';
 
+            } else if (content.startsWith("<div id='timing_info'>")) {
+                // Handle timing information
+                document.getElementById("traceability_html").insertAdjacentHTML('beforeend', content);
             } else {
                 // Handle incoming data chunks (table rows)
                 document.getElementById("table_body_tweet").insertAdjacentHTML('beforeend', content);
