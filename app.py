@@ -24,6 +24,7 @@ app = Flask(__name__)
 # parts of the application, such as model parameters, datasets, and UI settings.
 app_data = {}
 
+
 # Placeholder variables for global values - REMOVED as they are now in app_data
 # (f1_g, precision_g, recall_g, accuracy_g, original_classes_g, original_coef_g, original_intercept_g, X_train_g, X_train_tokenized_g,
 #  X_test_g, X_test_tokenized_g) = None, None, None, None, None, None, None, None, None, None, None
@@ -76,7 +77,8 @@ def build_header():
         }
         return jsonify(result)
 
-    (X_train, X_test, X_train_shape, X_test_shape, X_train_tokenized, X_test_tokenized, X_train_tokenized_shape,  X_test_tokenized_shape,
+    (X_train, X_test, X_train_shape, X_test_shape, X_train_tokenized, X_test_tokenized, X_train_tokenized_shape,
+     X_test_tokenized_shape,
      token_list, train_klasses, test_klasses) = build_dataset(sample_size, json_file_train, json_file_test)
 
     # Initial lienar model
@@ -97,10 +99,10 @@ def build_header():
     app_data['original_classes'] = lsvc.classes_.copy()
     app_data['original_coef'] = lsvc.coef_.copy()
     app_data['original_intercept'] = lsvc.intercept_.copy()
-    app_data['X_train_tokenized'] = X_train_tokenized # TF-IDF vectors for training text
-    app_data['X_train'] = X_train # DataFrame for training data
-    app_data['X_test_tokenized'] = X_test_tokenized # TF-IDF vectors for test text
-    app_data['X_test'] = X_test # DataFrame for test data
+    app_data['X_train_tokenized'] = X_train_tokenized  # TF-IDF vectors for training text
+    app_data['X_train'] = X_train  # DataFrame for training data
+    app_data['X_test_tokenized'] = X_test_tokenized  # TF-IDF vectors for test text
+    app_data['X_test'] = X_test  # DataFrame for test data
 
     # extras
     sparse_coef = csr_matrix(lsvc.coef_)
@@ -108,6 +110,21 @@ def build_header():
     total_elements = rows * cols
     density_sparse = f"{(sparse_coef.nnz / total_elements) * 100:.2f}%"
     variance = np.var(sparse_coef.data)
+
+    # New statistics for initial model coefficients
+    total_coefficients_np = app_data['original_coef'].size
+    all_coeffs_flat = app_data['original_coef'].flatten()
+    if len(all_coeffs_flat) > 0:  # Ensure there are coefficients to calculate percentile
+        percentile_90_value_np = np.percentile(all_coeffs_flat, 90)
+        coeffs_above_90_percentile_np = np.sum(all_coeffs_flat > percentile_90_value_np)
+    else:
+        percentile_90_value_np = 0.0
+        coeffs_above_90_percentile_np = 0
+
+    # Convert NumPy types to Python native types for JSON serialization
+    total_coefficients = int(total_coefficients_np)
+    percentile_90_value = float(percentile_90_value_np)
+    coeffs_above_90_percentile = int(coeffs_above_90_percentile_np)
 
     result = {
         'processed': True,
@@ -127,11 +144,16 @@ def build_header():
         'recall': recall,
         'accuracy': accuracy,
 
-        'density': f"{density_sparse} : {variance:.2f}%"
+        'density': f"{density_sparse} : {variance:.2f}%",
+
+        'total_coefficients': total_coefficients,
+        'percentile_90_value': percentile_90_value,
+        'coeffs_above_90_percentile': coeffs_above_90_percentile
     }
 
     # result in Json
     return jsonify(result)
+
 
 def build_dataset(sample_size, json_file_train, json_file_test):
     """
@@ -190,7 +212,7 @@ def build_dataset(sample_size, json_file_train, json_file_test):
     # 2: bigrams of characters
     # 3: trigrams of characters
     # 4: 4-grams of characters
-    token_list = [-1, 2, 3, 4] # With q-grams
+    token_list = [-1, 2, 3, 4]  # With q-grams
 
     # Initialize and fit MicroTC text model.
     # Parameters include:
@@ -202,18 +224,20 @@ def build_dataset(sample_size, json_file_train, json_file_test):
     #   lc: lowercase text
     #   hashtag_option: None (keep hashtags as is)
     #   q_grams_words: True (generate q-grams from words, not just characters)
-    text_model = microtc.TextModel(token_list=token_list, del_diac=True, num_option='delete', del_punc=True, url_option='delete', del_dup=False, lc=True, hashtag_option=None, q_grams_words=True)
+    text_model = microtc.TextModel(token_list=token_list, del_diac=True, num_option='delete', del_punc=True,
+                                   url_option='delete', del_dup=False, lc=True, hashtag_option=None, q_grams_words=True)
     text_model = text_model.fit(X_train.text)
-    app_data['text_model'] = text_model # Store the primary text model
+    app_data['text_model'] = text_model  # Store the primary text model
 
     # tokenization
-    X_train_tokenized =  app_data['text_model'].transform(X_train.text) # rows are in the same order as the X.index
+    X_train_tokenized = app_data['text_model'].transform(X_train.text)  # rows are in the same order as the X.index
     X_train_tokenized_shape = f'({X_train_tokenized.shape[0]}, {X_train_tokenized.shape[1]})'
 
-    X_test_tokenized =  app_data['text_model'].transform(X_test.text)
+    X_test_tokenized = app_data['text_model'].transform(X_test.text)
     X_test_tokenized_shape = f'({X_test_tokenized.shape[0]}, {X_test_tokenized.shape[1]})'
 
-    return X_train, X_test, X_train_shape, X_test_shape, X_train_tokenized, X_test_tokenized, X_train_tokenized_shape,  X_test_tokenized_shape, token_list, train_klasses, test_klasses
+    return X_train, X_test, X_train_shape, X_test_shape, X_train_tokenized, X_test_tokenized, X_train_tokenized_shape, X_test_tokenized_shape, token_list, train_klasses, test_klasses
+
 
 @app.route('/threshold_header', methods=['POST'])
 def threshold_header():
@@ -234,12 +258,20 @@ def threshold_header():
 
     # Store UI-provided thresholds in app_data
     app_data['min_decision_value'] = request.form.get('min_decision_value', 0.05)
-    app_data['min_weight'] = request.form.get('min_weight', 0.005)
+    # min_weight is now a percentage
+    min_weight_percentage = request.form.get('min_weight', 10)  # Default to 10%
 
     try:
         # Convert the value to float (double in other languages)
         app_data['min_decision_value'] = float(app_data['min_decision_value'])
-        app_data['min_weight'] = float(app_data['min_weight'])
+        min_weight_percentage = float(min_weight_percentage)
+        if not (0 <= min_weight_percentage <= 100):
+            raise ValueError("Percentage must be between 0 and 100.")
+        app_data['min_weight_percentage'] = min_weight_percentage
+
+        # Get checkbox value
+        q_gram_level_filtering_str = request.form.get('q_gram_level_filtering', 'off')
+        app_data['q_gram_level_filtering'] = True if q_gram_level_filtering_str == 'on' else False
     except ValueError:
         result = {
             'processed': False,
@@ -250,9 +282,27 @@ def threshold_header():
     # todo IberLEF2023_PoliticEs_profession sube con 0.1, 0.05...hacer una tabla y grafica
     # todo ojo meoffendes con 0.2 tiene resultados padres
 
-    # Filter model coefficients: set coefficients to 0 if their absolute value is less than app_data['min_weight'].
+    # Calculate the actual weight threshold based on the percentage
+    # Get all non-zero absolute coefficient values from the original model
+    # Coefs can be multi-dimensional for multi-class, so flatten and take absolute values
+    all_abs_original_coeffs = np.abs(app_data['original_coef'][app_data['original_coef'] != 0])
+
+    if len(all_abs_original_coeffs) > 0:
+        # Calculate the percentile. If min_weight_percentage is P, we want weights >= P-th percentile.
+        # For example, if P=90, we want weights in the top 10%, so threshold is 90th percentile.
+        # If P=10, we want weights in top 90%, so threshold is 10th percentile.
+        # User confirmed: "incluir solo los tokens cuyos pesos sean igual o superiores al porcentaje mínimo indicado"
+        # So if user enters 90, it means threshold is the 90th percentile value.
+        calculated_min_weight_threshold = np.percentile(all_abs_original_coeffs, app_data['min_weight_percentage'])
+    else:
+        calculated_min_weight_threshold = 0  # Default if no non-zero coeffs
+
+    app_data['min_weight_absolute_threshold'] = calculated_min_weight_threshold
+
+    # Filter model coefficients: set coefficients to 0 if their absolute value is less than the calculated_min_weight_threshold.
     # This creates a sparser model by removing less important features.
-    altered_coef = np.where(np.abs(app_data['original_coef']) < app_data['min_weight'], 0.0, app_data['original_coef'])
+    altered_coef = np.where(np.abs(app_data['original_coef']) < calculated_min_weight_threshold, 0.0,
+                            app_data['original_coef'])
     # This filter helps me set to 0 those that do not comply
 
     # Create a new LinearSVC model ('lsvc_target') using the altered coefficients.
@@ -261,10 +311,10 @@ def threshold_header():
     lsvc_target.classes_ = app_data['original_classes']  # Keep the original classes
     lsvc_target.coef_ = altered_coef  # Assign the modified (filtered) coefficients
     lsvc_target.intercept_ = app_data['original_intercept']  # Keep the original intercept
-    app_data['lsvc_target'] = lsvc_target # Store the new, thresholded model
+    app_data['lsvc_target'] = lsvc_target  # Store the new, thresholded model
 
     y_pred_altered = app_data['lsvc_target'].predict(app_data['X_test_tokenized'])
-    app_data['X_test']['pred'] = y_pred_altered # Update predictions in the test DataFrame
+    app_data['X_test']['pred'] = y_pred_altered  # Update predictions in the test DataFrame
 
     # Calculate decision function values (distances to the hyperplane) for each instance.
     # Formula: w⋅x + b, where w is coefficient vector, x is feature vector, b is intercept.
@@ -276,13 +326,28 @@ def threshold_header():
     if distances.shape[1] > 1:
         # For multiclass, use the max distance among all classes for each instance
         distances = np.max(distances, axis=1, keepdims=True)
-    app_data['X_test']['distance'] = distances # Store calculated distances in the test DataFrame
+    app_data['X_test']['distance'] = distances  # Store calculated distances in the test DataFrame
 
     # metrics using model with altered coefficients
     f1 = round(f1_score(app_data['X_test'].klass, y_pred_altered, average='macro'), 5)
     precision = round(precision_score(app_data['X_test'].klass, y_pred_altered, average='macro'), 5)
     recall = round(recall_score(app_data['X_test'].klass, y_pred_altered, average='macro'), 5)
     accuracy = round(accuracy_score(app_data['X_test'].klass, y_pred_altered), 5)
+
+    # Token counts for the new message
+    total_potential_tokens = app_data['original_coef'].shape[1]
+    # all_abs_original_coeffs was defined earlier in this function:
+    # all_abs_original_coeffs = np.abs(app_data['original_coef'][app_data['original_coef'] != 0])
+    active_original_tokens_count = len(
+        all_abs_original_coeffs) if 'all_abs_original_coeffs' in locals() and all_abs_original_coeffs is not None else 0
+
+    # Count of tokens meeting the new percentile threshold (i.e., non-zero weights in altered_coef)
+    # For multiclass, a token is kept if its weight is non-zero for *any* class.
+    # So, we check if any class has a non-zero weight for each token column.
+    if app_data['lsvc_target'].coef_.ndim == 1:  # Binary classification
+        kept_tokens_count = np.count_nonzero(app_data['lsvc_target'].coef_)
+    else:  # Multiclass classification
+        kept_tokens_count = np.count_nonzero(np.sum(np.abs(app_data['lsvc_target'].coef_), axis=0))
 
     # extras
     sparse_coef = csr_matrix(app_data['lsvc_target'].coef_)
@@ -293,7 +358,8 @@ def threshold_header():
 
     if len(app_data['lsvc_target'].coef_) > 1:
         # multiclass
-        intercept = ", ".join(f"{k}:{round(i, 8)}" for k, i in zip(app_data['lsvc_target'].classes_, app_data['lsvc_target'].intercept_))
+        intercept = ", ".join(
+            f"{k}:{round(i, 8)}" for k, i in zip(app_data['lsvc_target'].classes_, app_data['lsvc_target'].intercept_))
     else:
         intercept = round(app_data['lsvc_target'].intercept_[0], 8)
 
@@ -301,7 +367,11 @@ def threshold_header():
         'processed': True,
         'message': 'Successfully processed',
         'min_decision_value': app_data['min_decision_value'],
-        'min_weight': app_data['min_weight'],
+        'min_weight_percentage': app_data['min_weight_percentage'],  # The percentage used
+        'min_weight_absolute_threshold': app_data['min_weight_absolute_threshold'],  # The calculated threshold
+        'total_potential_tokens': total_potential_tokens,
+        'active_original_tokens_count': active_original_tokens_count,
+        'kept_tokens_count': kept_tokens_count,
         'f1': f1,
         'f1_diff': round((f1 - app_data['f1_original']) * 100, 2),
         'precision': precision,
@@ -310,18 +380,20 @@ def threshold_header():
         'recall_diff': round((recall - app_data['recall_original']) * 100, 2),
         'accuracy': accuracy,
         'accuracy_diff': round((accuracy - app_data['accuracy_original']) * 100, 2),
-        'intercept_':  intercept,
-        'density':  f"{density_sparse} : {variance:.2f}%"
+        'intercept_': intercept,
+        'density': f"{density_sparse} : {variance:.2f}%"
     }
 
     return jsonify(result)
 
+
 # Normalize values ​​between 0 and 1 (considering negative and positive values)
 def normalize(value, min_value, max_value):
     """Normalizes a value to a 0-1 range given min and max bounds."""
-    if max_value == min_value: # Avoid division by zero if all values are the same
-        return 0.5 # Or any other appropriate default for this case
+    if max_value == min_value:  # Avoid division by zero if all values are the same
+        return 0.5  # Or any other appropriate default for this case
     return (value - min_value) / (max_value - min_value)
+
 
 # Map a normalized value to an HTML color
 def value_to_color(value, min_value, max_value):
@@ -358,6 +430,7 @@ def value_to_color(value, min_value, max_value):
 
     return f'#{r:02X}{g:02X}{b:02X}'
 
+
 def tracing_grams(tweet_idx):
     """
     Calculates and traces the weights of q-grams and words for a specific tweet instance.
@@ -387,22 +460,23 @@ def tracing_grams(tweet_idx):
 
     # Calculate full weights: element-wise product of TF-IDF values and model coefficients.
     # This shows the contribution of each feature (token in the vocabulary) to the decision score.
-    if len(app_data['lsvc_target'].coef_) == 1: # Binary classification
+    if len(app_data['lsvc_target'].coef_) == 1:  # Binary classification
         weights_full = tf_instance * app_data['lsvc_target'].coef_[0]
-    else: # Multiclass classification
+    else:  # Multiclass classification
         # Get coefficients for the predicted class
-        index_pred_klass = list(app_data['lsvc_target'].classes_).index(pred_klass) if isinstance(pred_klass, str) else pred_klass
+        index_pred_klass = list(app_data['lsvc_target'].classes_).index(pred_klass) if isinstance(pred_klass,
+                                                                                                  str) else pred_klass
         weights_full = tf_instance * app_data['lsvc_target'].coef_[index_pred_klass]
 
     # Identify non-zero weights and their corresponding tokens from the main text_model vocabulary
     indices_no_cero = np.nonzero(weights_full)[0]
-    tokens = [app_data['text_model'].id2token[i] for i in indices_no_cero] # Map token IDs to token strings
+    tokens = [app_data['text_model'].id2token[i] for i in indices_no_cero]  # Map token IDs to token strings
     weights = weights_full[indices_no_cero]
     # `vector_tokens`: A dictionary mapping active tokens (those with non-zero weights for this instance) to their weights.
     vector_tokens = dict(zip(tokens, weights))
 
-    tokens_weights = {} # Stores individual weights of all q-grams and words found in the current tweet
-    min_weight, max_weight = 0.00, 0.00 # For scaling colors of word highlights
+    tokens_weights = {}  # Stores individual weights of all q-grams and words found in the current tweet
+    min_weight, max_weight = 0.00, 0.00  # For scaling colors of word highlights
 
     # `solo_palabras`: Aggregates weights for each "word" in the tweet.
     # A "word" here is a token from `tweet_tokens_one_words`.
@@ -417,35 +491,58 @@ def tracing_grams(tweet_idx):
         for token in app_data['text_model'].tokenize(word):
             try:
                 # If this sub-token (q-gram or word itself) has a weight, record it
-                weight = vector_tokens[token]
-                tokens_weights[token] = weight # Store individual token weight
-                arreglo_de_pesos_per_word = np.append(arreglo_de_pesos_per_word, weight)
-                if weight < min_weight:
-                    min_weight = weight
-                elif weight > max_weight:
-                    max_weight = weight
-            except Exception as e:
-                # add the words even if they are 0
-                if not token.startswith('q:'):
-                    tokens_weights[token] = 0
-                    #continue
-                #continue
+                weight = vector_tokens[
+                    token]  # This weight is from TF-IDF * lsvc_target.coef_ (already q-gram thresholded at model level)
+                tokens_weights[token] = weight  # Store individual token weight for tooltip reference
+
+                # Apply secondary filtering for aggregation if checkbox is checked
+                if app_data.get('q_gram_level_filtering', False):
+                    if abs(weight) >= app_data['min_weight_absolute_threshold']:
+                        arreglo_de_pesos_per_word = np.append(arreglo_de_pesos_per_word, weight)
+                else:  # Checkbox not checked, include all weights from vector_tokens
+                    arreglo_de_pesos_per_word = np.append(arreglo_de_pesos_per_word, weight)
+
+                # Min/max for color scaling should consider individual q-gram weights if they are part of the sum
+                # This part is tricky: scaling should be based on what's _actually_ summed and displayed.
+                # Let's adjust min/max based on weights that *could* be part of the sum for solo_palabras
+                # or displayed in tooltips.
+                # The min/max for color scaling of the word will be based on the final solo_palabras values.
+                # The min/max for individual q-gram colors (if we had them) would be different.
+                # For now, the color scaling is applied to the final aggregated word weight.
+
+            except KeyError:  # Token from tweet not in vector_tokens (e.g. OOV for lsvc_target or zeroed out)
+                if not token.startswith('q:'):  # if it's a word token not found
+                    tokens_weights[token] = 0  # ensure it's in tokens_weights if it's a base word
+                continue  # Skip if token not in vector_tokens (no weight from model)
+
         weight_per_word = np.sum(arreglo_de_pesos_per_word) if len(arreglo_de_pesos_per_word) > 0 else 0
-        if weight_per_word < min_weight:
-            min_weight = weight_per_word
-        elif weight_per_word > max_weight:
-            max_weight = weight_per_word
         solo_palabras[word] = weight_per_word
 
-    print(tweet_idx, distance, min_weight, max_weight) # For debugging, shows instance details and weight ranges.
+    # After all words are processed, determine overall min/max aggregated word weights for color scaling
+    # This ensures consistent color scaling across all words in the tweet based on their final aggregated values.
+    # Filter out zero weights for more meaningful scaling, unless all are zero.
+    valid_word_weights = [w for w in solo_palabras.values() if w != 0]
+    if not valid_word_weights:  # all words have zero aggregated weight
+        min_aggregated_weight_for_scaling = 0.0
+        max_aggregated_weight_for_scaling = 0.0
+    else:
+        min_aggregated_weight_for_scaling = min(valid_word_weights)
+        max_aggregated_weight_for_scaling = max(valid_word_weights)
+
+    # Debug print with new scaling factors
+    print(tweet_idx, distance, min_aggregated_weight_for_scaling, max_aggregated_weight_for_scaling)
 
     # Maps each word (from simplified tokenization) to its aggregated weight and corresponding color.
-    words_weights = {key: [value,  value_to_color(value, min_weight, max_weight)] for key, value in solo_palabras.items()}
+    # Color scaling now uses the tweet-specific min/max of aggregated word weights.
+    words_weights = {
+        key: [value, value_to_color(value, min_aggregated_weight_for_scaling, max_aggregated_weight_for_scaling)] for
+        key, value in solo_palabras.items()}
 
     # Determine the color for the overall decision value of the tweet
     decision_color_html = value_to_color(distance, app_data['min_distance_viz'], app_data['max_distance_viz'])
 
     return words_weights, tokens_weights, decision_color_html
+
 
 def htmlizer():
     """
@@ -465,16 +562,17 @@ def htmlizer():
     # Initialize a simpler MicroTC model for tokenizing into words (primarily for display iteration)
     # Stores it in app_data to avoid re-initialization on every call if htmlizer is called multiple times.
     if 'text_model_one_token' not in app_data:
-        app_data['text_model_one_token'] = microtc.TextModel(token_list=[-1], del_punc=True, del_diac=True, lc=True, usr_option='group')
+        app_data['text_model_one_token'] = microtc.TextModel(token_list=[-1], del_punc=True, del_diac=True, lc=True,
+                                                             usr_option='group')
 
     tr_list = []  # Initialize as list
 
     for idx, row in app_data['X_test'].iterrows():
 
-        #if idx < 1020: # Example of a debugging skip, can be removed
+        # if idx < 1020: # Example of a debugging skip, can be removed
         #    continue
 
-        distance = row['distance'] # Overall decision score for this instance
+        distance = row['distance']  # Overall decision score for this instance
 
         # Filter instances by the minimum decision value threshold
         if abs(distance) >= app_data['min_decision_value']:
@@ -487,7 +585,7 @@ def htmlizer():
             # tokens_weights has all the unit weights per token (q_grams and words) and is the tooltip
             words_weights, tokens_weights, decision_color_html = tracing_grams(idx)
 
-            tr_row = '' # Accumulates HTML for words in the current tweet
+            tr_row = ''  # Accumulates HTML for words in the current tweet
 
             # `unique_words_weights` is used to avoid displaying the same word-weight combination multiple times
             # if a word appears identically multiple times and contributes the same weight each time.
@@ -502,20 +600,32 @@ def htmlizer():
 
             # Construct HTML for each word and its tooltip
             for word, (weight, color) in unique_words_weights.items():
-                if abs(weight) >= app_data['min_weight']: # Apply min_weight threshold for highlighting
+                # Use the absolute threshold for highlighting logic
+                if abs(weight) >= app_data['min_weight_absolute_threshold']:
                     # `frag_tip`: Tooltip HTML for an individual highlighted word, showing breakdown by its q-grams.
-                    tkn_frag_aggs = {} # Stores q-grams and their weights for the current word
-                    for tkn_frag in app_data['text_model'].tokenize(word): # Tokenize word by main model
-                        weight_frag = tokens_weights.get(tkn_frag, None)
-                        if weight_frag:
+                    tkn_frag_aggs = {}  # Stores q-grams and their weights for the current word
+                    for tkn_frag in app_data['text_model'].tokenize(word):  # Tokenize word by main model
+                        weight_frag = tokens_weights.get(tkn_frag, 0.0)  # Default to 0.0 if not found
+
+                        if app_data.get('q_gram_level_filtering', False):
+                            if abs(weight_frag) >= app_data['min_weight_absolute_threshold']:
+                                if weight_frag != 0.0:  # Only add if non-zero after meeting threshold
+                                    tkn_frag_aggs[tkn_frag] = weight_frag
+                        elif weight_frag != 0.0:  # Checkbox not checked, include if non-zero
                             tkn_frag_aggs[tkn_frag] = weight_frag
 
                     frag_tip = """<table class='tooltip_text'> """
-                    frag_tip += f"<tr><td><strong>{word}</strong></td><td><strong/>∑{round(weight, 5):+.5f}</strong></td></tr>"
-                    for g, v in tkn_frag_aggs.items():
+                    frag_tip += f"<tr><td><strong>{word}</strong></td><td><strong/>∑{round(weight, 5):+.5f}</strong></td></tr>"  # 'weight' here is the aggregated word weight
+
+                    sorted_tkn_frag_aggs = dict(
+                        sorted(tkn_frag_aggs.items(), key=lambda item: abs(item[1]), reverse=True))
+
+                    for g, v in sorted_tkn_frag_aggs.items():
                         # g is a q-gram (e.g., "q:ing") or a word token
                         if g.startswith('q:'):
                             frag_tip += f"<tr><td>{g.replace('q:', '')}</td><td>{round(v, 5):+.5f}</td></tr>"
+                        else:  # Emphasize word tokens if they are part of this list
+                            frag_tip += f"<tr><td style='font-weight: 600;'><em>{g}</em></td><td>{round(v, 5):+.5f}</td></tr>"
                     frag_tip += "</table>"
 
                     # HTML span for the highlighted word with its tooltip
@@ -527,14 +637,16 @@ def htmlizer():
                     span_word = f"<span class='sp_word' style='color: unset;'>{word}</span>"
                 tr_row += span_word
 
-            weight_total = sum(tokens_weights.values()) # Total weight from all tokens contributing to this instance for the predicted class.
+            weight_total = sum(
+                tokens_weights.values())  # Total weight from all tokens contributing to this instance for the predicted class.
             # The line below is a note: if uncommented, it would filter tokens for the tooltip based on app_data['min_weight'].
             # tokens_weights_tooltip_filtered = {key: value for key, value in tokens_weights.items() if abs(value) >= app_data['min_weight']}
-            weight_umbral = sum(tokens_weights.values()) # Currently, this is the same as weight_total as tooltip tokens are not filtered by min_weight for this sum.
+            weight_umbral = sum(
+                tokens_weights.values())  # Currently, this is the same as weight_total as tooltip tokens are not filtered by min_weight for this sum.
 
             # Sort all tokens (q-grams and words) by absolute weight for display in the main prediction tooltip, and limit to top N.
             tokens_weights_sorted = dict(sorted(tokens_weights.items(), key=lambda item: abs(item[1]), reverse=True))
-            num_de_qgrams = 15 # Max number of q-grams to show in the main tooltip
+            num_de_qgrams = 15  # Max number of q-grams to show in the main tooltip
             if len(tokens_weights_sorted) > num_de_qgrams:
                 primeros_grams = dict(list(tokens_weights_sorted.items())[:num_de_qgrams])
                 restantes = list(tokens_weights_sorted.items())[num_de_qgrams:]
@@ -546,19 +658,19 @@ def htmlizer():
 
             # `span_tip`: Tooltip HTML for the overall prediction, showing top contributing tokens (q-grams/words).
             span_tip = """<table class='tooltip_text'> """
-            span_tip += f"<tr><td><strong>Weight</strong></td><td><strong/>{round(weight_total, 5):+.5f}</strong></td></tr>" # Total weight before any display filtering
-            span_tip += f"<tr><td><strong>Threshold</strong></td><td><strong/>{round(weight_umbral, 5):+.5f}</strong></td></tr>" # Total weight of displayed items (potentially after min_weight filter if it were applied above)
+            span_tip += f"<tr><td><strong>Weight</strong></td><td><strong/>{round(weight_total, 5):+.5f}</strong></td></tr>"  # Total weight before any display filtering
+            span_tip += f"<tr><td><strong>Threshold</strong></td><td><strong/>{round(weight_umbral, 5):+.5f}</strong></td></tr>"  # Total weight of displayed items (potentially after min_weight filter if it were applied above)
             for g, v in tokens_weights_display.items():
                 # g is a q-gram or word token
                 if g.startswith('q:'):
                     span_tip += f"<tr><td>{g.replace('q:', '')}</td><td>{round(v, 4):+.4f}</td></tr>"
-                else: # Emphasize word tokens
+                else:  # Emphasize word tokens
                     span_tip += f"<tr><td style='font-weight: 600;'><em>{g}</em></td><td>{round(v, 4):+.4f}</td></tr>"
             span_tip += "</table>"
 
             # Visual indicator for correct (✔) or incorrect (✘) prediction
             if pred_klass == true_klass:
-                true_legend = f"<span class='span_mark'>&nbsp</span>" #  ✔
+                true_legend = f"<span class='span_mark'>&nbsp</span>"  # ✔
             else:
                 true_legend = f"<span class='span_mark'>✘</span>"
 
@@ -574,6 +686,7 @@ def htmlizer():
 
     return tr_list
 
+
 def generate_chunks():
     """
     Generates HTML table row data in chunks for streaming to the client.
@@ -584,16 +697,27 @@ def generate_chunks():
         str: Server-sent event data strings. Starts with '__START__', ends with '__COMPLETE__',
              and intermediate events are chunks of HTML table rows.
     """
-    table_rows = htmlizer() # Get all HTML table rows
+    start_time = time.time()
+    table_rows = htmlizer()  # Get all HTML table rows
+    end_time = time.time()
+    elapsed_time = end_time - start_time
 
     total_row = len(table_rows)
+    time_per_instance = elapsed_time / total_row if total_row > 0 else 0
+
+    timing_info = f"Time per instance: {time_per_instance:.5f} sec in {total_row} instances."
+
     chunk_size = 400
     yield f"data: __START__\n\n"
     for i in range(0, total_row, chunk_size):
         chunk = table_rows[i:i + chunk_size]
         yield f"data: {''.join(chunk)}\n\n"
         time.sleep(1)
+
+    # Append timing information to the traceability_html div
+    yield f"data: <div id='timing_info'>{timing_info}</div>\n\n"
     yield "data: __COMPLETE__\n\n"  # Signal to indicate that the shipment was completed
+
 
 @app.route('/stream-data-html')
 def stream():
@@ -606,6 +730,7 @@ def stream():
     """
     return Response(stream_with_context(generate_chunks()), content_type='text/event-stream')
 
+
 @app.route('/download-json')
 def download_json():
     """
@@ -616,13 +741,14 @@ def download_json():
     Returns:
         Response: A Flask response to send the generated JSON file for download.
     """
+
     def json_serializer(obj):
         """Custom JSON serializer to handle numpy numeric types."""
         if isinstance(obj, (np.integer, np.floating)):
             return str(obj)  # Convert numeric types to string
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-    tokens_data = [] # List to hold data for each tweet
+    tokens_data = []  # List to hold data for each tweet
 
     # Iterate through test instances that meet the decision value threshold
     for idx, row in app_data['X_test'].iterrows():
@@ -642,11 +768,11 @@ def download_json():
                     'prediction_klass': str(pred_klass),
                     'decision_value': str(distance),
                     'true_klass': true_klass,
-                    'data': tokens_weights # Dictionary of token: weight
+                    'data': tokens_weights  # Dictionary of token: weight
                 }
             })
 
-    filename = 'data.json' # Default filename for download
+    filename = 'data.json'  # Default filename for download
 
     # Save the list of dictionaries to a JSON file
     with open(filename, 'w') as json_file:
@@ -658,3 +784,4 @@ def download_json():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    

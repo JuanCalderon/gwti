@@ -70,10 +70,12 @@
                 <div class="form-columns">
                     <div class="form-column">
                         <div class="form-group">
-                            <label for="min_weight">Threshold Weight:</label>
-                            <input type="number" id="min_weight" name="min_weight" value="0.005"   min="0" max="10"  step="any" required>
-                            <p class="description">Absolute minimum weight that coefficients must reach.</p>
-                            <p class="description">Improves readability; values remain unchanged.</p>
+                            <label for="min_weight">Min Weight Percentile (0-100):</label>
+                            <input type="number" id="min_weight" name="min_weight" value="10"   min="0" max="100"  step="any" required>
+                            <input type="checkbox" id="q_gram_level_filtering" name="q_gram_level_filtering" style="margin-left: 10px;">
+                            <label for="q_gram_level_filtering" style="font-size: 0.9em; margin-left: 5px;">Filter q-grams in tooltips & word sums by main threshold</label>
+                            <p class="description">"Min Weight Percentile" sets a threshold based on q-gram/feature weights from the original model. This threshold is always applied to the underlying model coefficients.</p>
+                            <p class="description">Checking the box applies this same threshold *again* to individual q-gram contributions within word tooltips and for their sum towards word highlighting.</p>
                         </div>
                         <div class="form-group">
                             <label for="min_decision_value">Threshold Decision Value:</label>

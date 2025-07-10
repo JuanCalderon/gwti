@@ -96,6 +96,11 @@ document.getElementById('datasetForm').addEventListener('submit', function(event
                         <td class="value">${data.density}</td>
                     </tr>
                 </table>
+                <p style="font-size: 12px; margin-top: 5px;">
+                    Initial model stats: Total coefficients: ${data.total_coefficients}. 
+                    Value at 90th percentile: ${data.percentile_90_value.toFixed(5)}. 
+                    Coefficients exceeding 90th percentile: ${data.coeffs_above_90_percentile}.
+                </p>
             `;
 
             threshold_html.style.display = "block";
@@ -184,7 +189,12 @@ document.getElementById('thresholdForm').addEventListener('submit', function(eve
                         <td class="value">Intercept (b)</td>
                         <td class="value">${data.intercept_ > 0 ? "+" : ""}${data.intercept_}</td>
                     </tr>
-                </table>`;
+                </table>
+                <p style="font-size: 12px; margin-top: 5px;">
+                    Absolute weight threshold: ${data.min_weight_absolute_threshold.toFixed(5)} (calculated from ${data.min_weight_percentage}% percentile of ${data.active_original_tokens_count} initially active tokens).<br>
+                    Total potential tokens in model: ${data.total_potential_tokens}. Kept tokens after thresholding: ${data.kept_tokens_count}.
+                </p>
+                `;
 
             document.getElementById("table_body_tweet").innerText = '';
 
@@ -253,6 +263,9 @@ function fetchData() {
                 document.getElementById("table_body_tweet").insertAdjacentHTML('beforeend', table_header);
                 document.getElementById('msg_status').textContent = 'Loading...';
 
+            } else if (content.startsWith("<div id='timing_info'>")) {
+                // Handle timing information
+                document.getElementById("traceability_html").insertAdjacentHTML('beforeend', content);
             } else {
                 // Handle incoming data chunks (table rows)
                 document.getElementById("table_body_tweet").insertAdjacentHTML('beforeend', content);
